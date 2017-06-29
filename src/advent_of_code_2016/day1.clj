@@ -6,12 +6,10 @@
 
 (defn parse-input
   [input]
-  (map (juxt first (comp #(Integer/parseInt (apply str %))
+  (map (juxt first (comp #(Integer/parseInt %)
+                         #(string/replace (apply str %) #"\s*" "")
                          rest)) 
        (string/split input #",\s*")))
-
-(parse-input (slurp (io/resource "day1_input.txt")))
-
 
 (defn turn-right
   [{:keys [compass] :as state}]
@@ -25,20 +23,22 @@
 
 (def initial-state 
   {:compass [:N :E :S :W]
-   :position [0 0]})
+   :route [[0 0]]})
 
 (defn heading
   [{[direction] :compass :as state}]
   direction)
 
 (defn move
-  [{[x y] :position :as state} units]
-  (assoc state :position
-         (case (heading state) 
-           :N [x (+ y units)]
-           :E [(+ x units) y]
-           :S [x (- y units)]
-           :W [(- x units) y])))
+  [{:keys [route] :as state} units]
+  (let [[x y] (last route)]
+    (update state :route
+            conj
+            (case (heading state) 
+              :N [x (+ y units)]
+              :E [(+ x units) y]
+              :S [x (- y units)]
+              :W [(- x units) y]))))
 
 (defn sim-moves
   [moves]
@@ -50,24 +50,51 @@
           moves))
 
 (defn blocks
-  [state]
-  (->> state :position (map #(Math/abs %)) (apply +)))
+  [[x y]]
+  (+ (Math/abs x) (Math/abs y)))
 
-(defn solve
-  []
-  (blocks (sim-moves (parse-input (slurp (io/resource "day1_input.txt"))))))
+(defn last-position
+  [state]
+  (->> state :route last))
+
+(defn solve-part-1
+  ([] (solve-part-1 (parse-input (slurp (io/resource "day1_input.txt")))))
+  ([moves]
+   (->> (sim-moves moves)
+        :route
+        last
+        blocks)))
+
+#_(solve-part-1)
 
 (deftest test-left-loop
-  (is (zero? (blocks (sim-moves [[\L 10] [\L 10] [\L 10] [\L 10]])))))
+  (is (zero? (solve-part-1 [[\L 10] [\L 10] [\L 10] [\L 10]]))))
 
 (deftest test-right-loop
-  (is (zero? (blocks (sim-moves [[\R 10] [\R 10] [\R 10] [\R 10]])))))
+  (is (zero? (solve-part-1 [[\R 10] [\R 10] [\R 10] [\R 10]]))))
 
 (deftest test-up-zig-zag
-  (is (= 20 (blocks (sim-moves [[\R 10] [\L 10] [\L 10] [\R 10]])))))
+  (is (= 20 (solve-part-1 [[\R 10] [\L 10] [\L 10] [\R 10]]))))
 
 (deftest test-left-zig-zag
-  (is (= 50 (blocks (sim-moves [[\L 10] [\L 10] [\R 10] [\R 10] [\L 10] [\L 10] [\R 10]])))))
+  (is (= 50 (solve-part-1 [[\L 10] [\L 10] [\R 10] [\R 10] [\L 10] [\L 10] [\R 10]]))))
 
+(defn find-first-reoccuring-position
+  [{route :route :as state}]
+  (loop [[r & rs] route seen-positions #{}]
+    (when r
+      (if (contains? seen-positions r)
+        r
+        (recur rs (conj seen-positions r))))))
 
-#_(solve)
+(deftest test-find-first-reoccuring-position
+  (is (= [2 0] (find-first-reoccuring-position
+                 (sim-moves [[\R 2] [\L 5] [\L 5] [\L 5] [\L 5] [\R 2] [\R 2] [\R 2]])))))
+
+(defn solve-part-2
+  []
+  (blocks (find-first-reoccuring-position
+            (sim-moves (parse-input (slurp (io/resource "day1_input.txt")))))))
+
+#_(solve-part-2)
+
