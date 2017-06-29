@@ -51,7 +51,7 @@
 
 (defn blocks
   [state]
-  (->> state :position (apply +)))
+  (->> state :position (map #(Math/abs %)) (apply +)))
 
 (defn solve
   []
